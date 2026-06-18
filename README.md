@@ -1,5 +1,7 @@
 # ADAPT: Analytical Disturbance-Aware Policy Training for Humanoid Locomotion
 
+We are currently organizing the ADAPT codebase and will release the official implementation in this repository soon.
+
 Project page: https://blyu413.github.io/adapt-locomotion/
 
 Paper: https://arxiv.org/abs/2606.16542
