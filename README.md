@@ -15,7 +15,7 @@ Humanoids deployed in human-centered environments must handle force-interactive 
 ## Citation
 
 ```bibtex
-@misc{lyu2026adaptanalyticaldisturbanceawarepolicy,
+@misc{lyu2026adapt,
   title={ADAPT: Analytical Disturbance-Aware Policy Training for Humanoid Locomotion},
   author={Bofan Lyu and Jindou Jia and Kuangji Zuo and Yanshuo Lu and Shijia Han and Gen Li and Boyu Ma and Jingliang Li and Geng Li and Jianfei Yang},
   year={2026},
