@@ -1,0 +1,140 @@
+{
+  "source_commit": "4d1cf4bd6b784049751f388cc0fbdb22303af9c8",
+  "models": [
+    {
+      "name": "baseline_stage1",
+      "task": "Ref-NoMoMo-Flat-Unitree-G1",
+      "source": "ref_g1/2026-05-13_02-11-50_stage1/model_14999",
+      "path": "ref_g1/2026-05-13_02-11-50_stage1/model_14999",
+      "files": {
+        "model_14999.onnx": {
+          "sha256": "0feef4d27d2e85db780a6e3630ef25cb02b96858251bb21e5bc91133ef94f4c9",
+          "bytes": 1456157
+        },
+        "model_14999.pt": {
+          "sha256": "b1b0b7f7c45e87bc512ac84d319a34695b6c650ee0529b5d2225d102da82a35a",
+          "bytes": 8763847
+        }
+      },
+      "iteration": 14999,
+      "checkpoint_keys": [
+        "actor_state_dict",
+        "critic_state_dict",
+        "optimizer_state_dict",
+        "iter",
+        "infos"
+      ],
+      "infos_keys": [
+        "env_state"
+      ]
+    },
+    {
+      "name": "baseline",
+      "task": "Ref-NoMoMo-Flat-Unitree-G1-HandLoad-CleanMix",
+      "source": "ref_g1/2026-05-14_02-15-28_stage2/model_34998",
+      "path": "ref_g1/2026-05-14_02-15-28_stage2/model_34998",
+      "files": {
+        "model_34998.onnx": {
+          "sha256": "7b6c369ce2c87ced50029a5f910f57b4970644b66f7647fbf904406ccd9259b5",
+          "bytes": 1456157
+        },
+        "model_34998.pt": {
+          "sha256": "bdf50c9a553409cb3d443873364732a08e13f7b10b391c228f26b59eccac7841",
+          "bytes": 8763847
+        }
+      },
+      "iteration": 34998,
+      "checkpoint_keys": [
+        "actor_state_dict",
+        "critic_state_dict",
+        "optimizer_state_dict",
+        "iter",
+        "infos"
+      ],
+      "infos_keys": [
+        "env_state"
+      ]
+    },
+    {
+      "name": "adapt_stage1",
+      "task": "MOMO-Lumped-Flat-Unitree-G1-EffortScale",
+      "source": "momo_g1_effortscale/2026-05-13_02-12-41_stage1/model_14999",
+      "path": "momo_g1_effortscale/2026-05-13_02-12-41_stage1/model_14999",
+      "files": {
+        "model_14999.onnx": {
+          "sha256": "2fd81d269e1529d2aaaf34b96a161665311e43e72baea4e3223d1ae3b365dea6",
+          "bytes": 1822928
+        },
+        "model_14999.pt": {
+          "sha256": "f354741f169b59c25f7756951d68f6531125986abd701a61bf265ac781a8042e",
+          "bytes": 10918471
+        }
+      },
+      "iteration": 14999,
+      "checkpoint_keys": [
+        "actor_state_dict",
+        "critic_state_dict",
+        "optimizer_state_dict",
+        "iter",
+        "infos"
+      ],
+      "infos_keys": [
+        "env_state"
+      ]
+    },
+    {
+      "name": "adapt",
+      "task": "MOMO-Lumped-Flat-Unitree-G1-HandLoad-CleanMix-EffortScale",
+      "source": "momo_g1_effortscale/2026-05-14-_02-15-42_stage2/model_34998",
+      "path": "momo_g1_effortscale/2026-05-14-_02-15-42_stage2/model_34998",
+      "files": {
+        "model_34998.onnx": {
+          "sha256": "993f3bcf095265ed42cc091c678326bba85fca9cacb154623506f56d23edbacb",
+          "bytes": 1822928
+        },
+        "model_34998.pt": {
+          "sha256": "2ab3fbc0a51a0be4fa3339e5e33317a4e435604059cf0c144248f02d4af044a1",
+          "bytes": 10918471
+        }
+      },
+      "iteration": 34998,
+      "checkpoint_keys": [
+        "actor_state_dict",
+        "critic_state_dict",
+        "optimizer_state_dict",
+        "iter",
+        "infos"
+      ],
+      "infos_keys": [
+        "env_state"
+      ]
+    },
+    {
+      "name": "lightstep",
+      "task": "MOMO-Lumped-Flat-Unitree-G1-LegEffortSoftStep-NoActorFeedback",
+      "source": "momo_softland_nofeedback/model_14999",
+      "path": "momo_softland/model_14999",
+      "files": {
+        "model_14999.onnx": {
+          "sha256": "a4550cee2bb7a21650e900788ae7ee50b9a6d71b99d0059d9a71891a3ac0cb3e",
+          "bytes": 2617569
+        },
+        "model_14999.pt": {
+          "sha256": "3f0ffc23e7f8e4fd2c8b7375d48775ab1bf448111ab6b15ff460c6bba7410977",
+          "bytes": 15658567
+        }
+      },
+      "iteration": 14999,
+      "checkpoint_keys": [
+        "actor_state_dict",
+        "critic_state_dict",
+        "optimizer_state_dict",
+        "iter",
+        "infos"
+      ],
+      "infos_keys": [
+        "env_state"
+      ]
+    }
+  ]
+}
