@@ -5,7 +5,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = PROJECT_ROOT / "models" / "g1"
-CHECKPOINT_DIR = PROJECT_ROOT / "logs" / "rsl_rl" / "4096*1"
+CHECKPOINT_DIR = PROJECT_ROOT / "logs" / "rsl_rl"
 
 
 def checkpoint_path(name: str, suffix: str = ".onnx") -> Path:

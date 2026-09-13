@@ -1,10 +1,9 @@
 # Released checkpoints
 
-The selected models are stored under `logs/rsl_rl/4096*1/` with their original
+The selected models are stored under `logs/rsl_rl/` with their original
 filenames. The light-step directory is named `momo_softland`; its weights and
 NoActorFeedback configuration are unchanged. Each `model_*.pt` has a matching `model_*.onnx` and
-`model_*.json`. The `*` is a literal directory-name character; quote explicit paths
-in shell commands.
+`model_*.json`.
 ONNX includes the actor normalizer. JSON describes the matching observation order,
 history lengths, PD gains, joint order, action scale, physical residual scale,
 observer settings and the ONNX SHA-256. The loader rejects mismatched ONNX/JSON pairs.
