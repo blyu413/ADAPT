@@ -16,5 +16,4 @@ the policy and observer. The real-control adapter accepts the original 29-DoF
 hardware `mode_machine=2`; revised hip reductions require a separately validated asset/config.
 
 The source asset README attributes the robot description to Unitree Robotics.
-No asset license file was present in the copied research directory. See
-[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) before redistribution.
+No asset license file was present in the copied research directory.
