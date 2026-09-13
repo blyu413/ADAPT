@@ -1,7 +1,5 @@
 # ADAPT: Analytical Disturbance-Aware Policy Training for Humanoid Locomotion
 
-In progress.
-
 Project page: [ADAPT](https://blyu413.github.io/adapt-locomotion/)
 
 Paper: [arXiv:2606.16542](https://arxiv.org/abs/2606.16542)
@@ -14,7 +12,11 @@ Humanoids deployed in human-centered environments must handle force-interactive 
 
 ## Installation
 
+in progress
+
 ## Train & Deploy
+
+in progress
 
 ## Citation
 
