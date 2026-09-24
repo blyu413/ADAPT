@@ -92,6 +92,15 @@ uv run --frozen adapt-sim --seconds 10
 
 Use the `--headless` option when running without a display.
 
+## Unitree G1 Code Configuration
+
+The on-robot setup for the Unitree G1 requires
+[FAST-LIO](https://github.com/hku-mars/FAST_LIO) to provide the base linear
+velocity estimate used by the deployment code.
+
+Detailed installation and configuration instructions for our G1 setup are
+still in preparation.
+
 ## Train & Deploy
 
 ### Tasks
@@ -295,15 +304,6 @@ Replace `eno1` with the robot network interface and select `raw` or
 `compensated` according to the Livox driver configuration. Low-level control
 must be enabled explicitly with `--enable-control` after hardware-specific
 validation.
-
-### Unitree G1 Code Configuration
-
-The on-robot setup for the Unitree G1 requires
-[FAST-LIO](https://github.com/hku-mars/FAST_LIO) to provide the base linear
-velocity estimate used by the deployment code.
-
-Detailed installation and configuration instructions for our G1 setup are
-still in preparation.
 
 ## Citation
 
