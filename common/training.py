@@ -6,8 +6,8 @@ from mjlab.rl.runner import MjlabOnPolicyRunner
 from tasks.registry import load_env_cls, load_runner_cls
 
 
-def make_runner(task, env_cfg, agent_cfg, device, log_dir=None):
-    env = load_env_cls(task)(cfg=env_cfg, device=device)
+def make_runner(task, env_cfg, agent_cfg, device, log_dir=None, rank=0):
+    env = load_env_cls(task)(cfg=env_cfg, device=device, rank=rank)
     wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     try:
         runner_cls = load_runner_cls(task) or MjlabOnPolicyRunner

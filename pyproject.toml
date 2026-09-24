@@ -27,6 +27,7 @@ train = [
   "tensorboard",
 ]
 robot = ["unitree-sdk2py==1.0.1", "cyclonedds==0.10.2", "pygame>=2.6,<3"]
+controller = ["pygame>=2.6,<3"]
 monitor = ["matplotlib>=3.9,<3.11"]
 
 [dependency-groups]

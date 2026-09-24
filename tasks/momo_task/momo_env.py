@@ -101,6 +101,8 @@ class MoMoEnv(ManagerBasedRlEnv):
             device=device,
         )
         self.scene.initialize(mj_model=self.sim.mj_model, model=self.sim.model, data=self.sim.data)
+        if self.scene.sensor_context is not None:
+            self.sim.set_sensor_context(self.scene.sensor_context)
         print_info("")
         table = PrettyTable()
         table.title = "Base Environment"

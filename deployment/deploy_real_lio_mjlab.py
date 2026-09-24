@@ -7,11 +7,9 @@ import mujoco
 import numpy as np
 
 from common.telemetry import Telemetry, observer_record
-from observer import MomentumObserver
 from common.paths import ASSET_DIR, checkpoint_path
-from deployment.config_manager import configure_model
 from deployment.robot_interface import G1
-from deployment.policy_manager import Policy
+from deployment.policy_manager import load_policy
 
 
 def main():
@@ -44,17 +42,10 @@ def main():
         parser.error("--state-only prints state; observer logging requires observed lowcmd")
     if args.seconds <= 0:
         parser.error("--seconds must be positive")
-    policy = Policy(args.checkpoint or checkpoint_path(args.policy))
+    policy = load_policy(args.checkpoint or checkpoint_path(args.policy))
     cfg = policy.cfg
     model = mujoco.MjModel.from_xml_path(str(ASSET_DIR / "g1_29dof.xml"))
-    actuators = configure_model(model, cfg)
-    observer = MomentumObserver(
-        model,
-        cfg.control_dt,
-        cfg.observer_gain,
-        filter_order=cfg.filter_order,
-        cutoff_hz=cfg.cutoff_hz,
-    )
+    observer = policy.attach_observer(model)
     robot = G1(cfg, model, args.net, args.lidar_frame, args.lio_topic)
     telemetry = Telemetry(args.log, args.udp)
     gamepad = None
@@ -104,8 +95,7 @@ def main():
                     break
                 time.sleep(max(0, cfg.control_dt - (time.monotonic() - start)))
         state, _ = robot.snapshot()
-        observer.reset(state.qpos, state.qvel)
-        policy.history.reset()
+        policy.reset(state)
         begin = time.monotonic()
         step = 0
         while time.monotonic() - begin < args.seconds:
@@ -127,13 +117,12 @@ def main():
                     policy.history.last_action[:] = (
                         targets - np.asarray(cfg.default_position)
                     ) / np.asarray(cfg.action_scale)
-                ctrl = np.zeros(29)
-                ctrl[actuators] = targets
-                observer.update(state.qpos, state.qvel, ctrl)
+                policy.refresh_encoder(state)
+                policy.update_momo(state, targets)
                 local = observer.local_residual()
-                proposed = policy.step(state, command, local)
+                proposed = policy.step(state, command)
                 if args.enable_control:
-                    robot.send(proposed)
+                    robot.step(proposed)
                     targets = proposed
                 telemetry.write(
                     observer_record(

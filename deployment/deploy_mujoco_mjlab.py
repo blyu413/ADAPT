@@ -2,85 +2,110 @@
 
 import argparse
 from contextlib import nullcontext
+from pathlib import Path
 import time
 
 import mujoco
 import numpy as np
 
 from common.telemetry import Telemetry, observer_record
-from observer import MomentumObserver
 from common.paths import ASSET_DIR, checkpoint_path
-from deployment.config_manager import configure_model
-from deployment.policy_manager import Policy
-from deployment.robot_interface import RobotState
+from deployment.mujoco_robot import MujocoRobot
+from deployment.policy_manager import PolicyManager, load_policy
 
 
 class Simulation:
-    def __init__(self, checkpoint, *, seed=0, encoder_noise=False):
-        self.policy = Policy(checkpoint)
-        self.cfg = self.policy.cfg
-        self.model = mujoco.MjModel.from_xml_path(str(ASSET_DIR / "scene.xml"))
-        self.actuators = configure_model(self.model, self.cfg)
-        nominal = mujoco.MjModel.from_xml_path(str(ASSET_DIR / "scene.xml"))
-        configure_model(nominal, self.cfg)
-        self.observer = MomentumObserver(
-            nominal,
-            dt=self.cfg.control_dt,
-            gain=self.cfg.observer_gain,
-            filter_order=self.cfg.filter_order,
-            cutoff_hz=self.cfg.cutoff_hz,
-        )
-        self.data = mujoco.MjData(self.model)
-        self.rng = np.random.default_rng(seed)
-        self.encoder_noise = encoder_noise
-        self.lin_adr = self.model.sensor("robot/imu_lin_vel").adr[0]
-        self.ang_adr = self.model.sensor("robot/imu_ang_vel").adr[0]
+    def __init__(
+        self,
+        checkpoint,
+        *,
+        policy_name="policy",
+        additional_policies=(),
+        seed=0,
+        encoder_noise=False,
+    ):
+        self.policy_manager = PolicyManager()
+        self.register_policy(policy_name, checkpoint, set_active=True)
+        for name, path in additional_policies:
+            self.register_policy(name, path)
+        self.robot = MujocoRobot(self.cfg, seed=seed, encoder_noise=encoder_noise)
         self.reset()
 
-    def reset(self):
-        mujoco.mj_resetData(self.model, self.data)
-        self.data.qpos[:3] = [0, 0, 0.76]
-        self.data.qpos[3:7] = [1, 0, 0, 0]
-        self.data.qpos[7:] = self.cfg.default_position
-        self.data.ctrl[self.actuators] = self.cfg.default_position
-        mujoco.mj_forward(self.model, self.data)
-        self.bias = self.rng.uniform(-0.015, 0.015, 29) if self.encoder_noise else np.zeros(29)
-        self.policy.history.reset()
-        self._refresh_state()
-        self.observer.reset(self.state.qpos, self.state.qvel)
+    @property
+    def policy(self):
+        return self.policy_manager.active_policy
 
-    def _refresh_state(self):
-        q, v = self.data.qpos.copy(), self.data.qvel.copy()
-        if self.encoder_noise:
-            q[7:] += self.bias + self.rng.uniform(-1e-4, 1e-4, 29)
-            v[6:] += self.rng.uniform(-0.03, 0.03, 29)
-        self.state = RobotState(
-            q,
-            v,
-            self.data.sensordata[self.lin_adr : self.lin_adr + 3].copy(),
-            self.data.sensordata[self.ang_adr : self.ang_adr + 3].copy(),
-        )
+    @property
+    def cfg(self):
+        return self.policy.cfg
+
+    @property
+    def observer(self):
+        return self.policy.observer
+
+    def register_policy(self, name, checkpoint, *, set_active=False):
+        policy = load_policy(checkpoint, name=name)
+        nominal = mujoco.MjModel.from_xml_path(str(ASSET_DIR / "scene.xml"))
+        policy.attach_observer(nominal)
+        self.policy_manager.register(policy, set_active=set_active and not hasattr(self, "robot"))
+        if set_active and hasattr(self, "robot"):
+            self.set_active(name)
+
+    def set_active(self, name):
+        """Switch without resetting the robot pose or retaining old policy history."""
+        self.policy_manager.set_active(name, self.robot)
+        return name
+
+    def next_policy(self):
+        return self.policy_manager.next(self.robot)
+
+    def prev_policy(self):
+        return self.policy_manager.prev(self.robot)
+
+    def reset(self):
+        state = self.robot.reset()
+        self.policy.reset(state)
 
     def local_residual(self):
-        return self.observer.local_residual(self.data.xmat[self.observer.body_id].reshape(3, 3))
+        rotation = self.robot.data.xmat[self.observer.body_id].reshape(3, 3)
+        return self.observer.local_residual(rotation)
 
     def step(self, command):
-        targets = self.policy.step(self.state, command, self.local_residual())
-        self.data.ctrl[self.actuators] = targets
-        for _ in range(self.cfg.decimation):
-            mujoco.mj_step(self.model, self.data)
-        self._refresh_state()
-        self.observer.update(self.state.qpos, self.state.qvel, self.data.ctrl)
+        """One tick: observation/policy -> robot control -> encoder/MoMo refresh."""
+        state = self.robot.get_state()
+        targets = self.policy_manager.step(state, command)
+        state = self.robot.step(targets)
+        self.policy_manager.refresh_encoder(state)
+        self.policy.update_momo(state, targets)
+        extra = (
+            {"policy_name": self.policy_manager.active_policy_name}
+            if len(self.policy_manager.list_policies()) > 1
+            else {}
+        )
         return observer_record(
             self.observer,
             self.policy,
-            self.state,
+            state,
             command,
             self.local_residual(),
             source="mujoco",
-            time=float(self.data.time),
-            root_height=float(self.data.qpos[2]),
+            time=float(self.robot.data.time),
+            root_height=float(self.robot.data.qpos[2]),
+            **extra,
         )
+
+
+def additional_policy(value):
+    """A released policy name or NAME=ONNX_PATH for a custom export."""
+    if "=" in value:
+        name, path = value.split("=", 1)
+        if not name or not path:
+            raise argparse.ArgumentTypeError("Use NAME=ONNX_PATH")
+        return name, Path(path)
+    try:
+        return value, checkpoint_path(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def main():
@@ -88,48 +113,100 @@ def main():
     parser.add_argument("--policy", choices=["adapt", "baseline", "lightstep"], default="adapt")
     parser.add_argument("--checkpoint", type=str)
     parser.add_argument(
+        "--add-policy",
+        action="append",
+        type=additional_policy,
+        default=[],
+        metavar="NAME[=ONNX_PATH]",
+        help="Register another policy for runtime switching",
+    )
+    parser.add_argument(
         "--command", nargs=3, type=float, default=[0.8, 0, 0], metavar=("VX", "VY", "WZ")
     )
     parser.add_argument("--seconds", type=float, default=20)
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument(
+        "--controller", action="store_true", help="Use an Xbox controller for commands and switching"
+    )
     parser.add_argument("--encoder-noise", action="store_true", help="Shared Stage 1 encoder noise")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log", help="New JSONL file; existing files are never overwritten")
     parser.add_argument("--udp", help="Telemetry host:port, e.g. 127.0.0.1:9870")
     args = parser.parse_args()
+    policy_name = Path(args.checkpoint).stem if args.checkpoint else args.policy
     sim = Simulation(
         args.checkpoint or checkpoint_path(args.policy),
+        policy_name=policy_name,
+        additional_policies=args.add_policy,
         seed=args.seed,
         encoder_noise=args.encoder_noise,
     )
-    telemetry = Telemetry(args.log, args.udp)
+    steps = int(args.seconds / sim.cfg.control_dt)
+    if steps < 1:
+        raise ValueError("--seconds must cover at least one policy step")
+    controller = None
+    if args.controller:
+        from common.joystick import Gamepad
+
+        try:
+            controller = Gamepad()
+        except ImportError:
+            parser.error("Install the controller extra: uv sync --frozen --extra controller")
+        except RuntimeError as exc:
+            parser.error(str(exc))
     if args.headless:
         context = nullcontext(None)
     else:
         import mujoco.viewer
 
-        context = mujoco.viewer.launch_passive(sim.model, sim.data)
-    steps = int(args.seconds / sim.cfg.control_dt)
-    if steps < 1:
-        raise ValueError("--seconds must cover at least one policy step")
+        context = mujoco.viewer.launch_passive(sim.robot.model, sim.robot.data)
+    telemetry = Telemetry(args.log, args.udp)
+    if controller and len(sim.policy_manager.list_policies()) > 1:
+        print("Policies:", ", ".join(sim.policy_manager.list_policies()), "(START/SELECT to switch)")
     min_height = float("inf")
+    step_count = 0
+    previous_start = previous_select = False
     try:
         with context as viewer:
-            for _ in range(steps):
+            while True:
+                if not args.add_policy and step_count >= steps:
+                    break
                 start = time.monotonic()
                 if viewer and not viewer.is_running():
                     break
-                record = sim.step(np.asarray(args.command, np.float32))
+                command = np.asarray(args.command, np.float32)
+                if controller:
+                    buttons, command = controller.read()
+                    if len(sim.policy_manager.list_policies()) > 1:
+                        if previous_start and not buttons["start"]:
+                            print("Active policy:", sim.next_policy())
+                        if previous_select and not buttons["select"]:
+                            print("Active policy:", sim.prev_policy())
+                    previous_start = buttons["start"]
+                    previous_select = buttons["select"]
+                if (
+                    args.add_policy
+                    and sim.robot.data.time + sim.cfg.control_dt > args.seconds + 1e-9
+                ):
+                    break
+                record = sim.step(command)
+                step_count += 1
                 telemetry.write(record)
                 min_height = min(min_height, record["root_height"])
-                if not np.isfinite(sim.data.qpos).all():
+                if not np.isfinite(sim.robot.data.qpos).all():
                     raise RuntimeError("Simulation state became non-finite")
                 if viewer:
                     viewer.sync()
+                if viewer or controller:
                     time.sleep(max(0, sim.cfg.control_dt - (time.monotonic() - start)))
     finally:
         telemetry.close()
-    print(f"{sim.cfg.task}: simulated {sim.data.time:.2f}s, minimum root height {min_height:.3f}m")
+        if controller:
+            controller.close()
+    print(
+        f"{sim.cfg.task}: simulated {sim.robot.data.time:.2f}s, "
+        f"minimum root height {min_height:.3f}m"
+    )
 
 
 if __name__ == "__main__":

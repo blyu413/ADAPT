@@ -21,6 +21,7 @@ class Gamepad:
             raise RuntimeError("Gamepad disconnected")
         buttons = dict(
             start=bool(self.joy.get_button(7)),
+            select=bool(self.joy.get_button(6)),
             arm=bool(self.joy.get_button(0)),
             stop=bool(self.joy.get_button(1)),
             deadman=bool(self.joy.get_button(4)),

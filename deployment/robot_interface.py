@@ -1,5 +1,6 @@
 """G1 DDS adapter. Construction is read-only; control must be enabled explicitly."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import threading
 import time
@@ -11,12 +12,29 @@ from common.crc import command_crc
 from deployment.obs_processor import inverse_rotate
 
 
+class RobotInterface(ABC):
+    """The deployment-facing state, control, and reset interface."""
+
+    @abstractmethod
+    def get_state(self):
+        """Return the latest robot state."""
+
+    @abstractmethod
+    def step(self, control_input):
+        """Apply one joint-order control target."""
+
+    @abstractmethod
+    def reset(self, default_angles=None):
+        """Reset simulation state; physical robots cannot be reset this way."""
+
+
 @dataclass
 class RobotState:
     qpos: np.ndarray
     qvel: np.ndarray
     linear_velocity: np.ndarray  # pelvis frame
     angular_velocity: np.ndarray  # pelvis frame
+    body_rotation: np.ndarray | None = None  # MuJoCo pelvis rotation, if available
 
 
 G1_MOTOR_NAMES = (
@@ -73,7 +91,7 @@ def state_from_message(msg, mapping, velocity):
     return RobotState(q, v, np.asarray(velocity).copy(), v[3:6].copy())
 
 
-class G1:
+class G1(RobotInterface):
     timeout = 0.1  # Local monotonic age of advancing state/LIO samples.
 
     def __init__(self, cfg, model, interface, lidar_frame, lio_topic):
@@ -135,6 +153,15 @@ class G1:
             lio_timestamp=lio["timestamp"],
             mode_machine=int(msg.mode_machine),
         )
+
+    def get_state(self):
+        return self.snapshot()[0]
+
+    def step(self, control_input):
+        self.send(control_input)
+
+    def reset(self, default_angles=None):
+        raise RuntimeError("A physical G1 cannot be reset through RobotInterface")
 
     def observed_targets(self):
         """Read-only observer requires the same nominal position-PD command contract."""
